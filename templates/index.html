@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js"></script>
+  <script type="module">
+    import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r127/build/three.module.js';
+
+    const socket = io();
+
+    // Set up scene
+    const scene = new THREE.Scene();
+
+    // Set up camera
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    // Set up renderer
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Create a cube with textures
+    const loader = new THREE.TextureLoader();
+    const materials = [
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+      new THREE.MeshBasicMaterial({ map: loader.load('https://threejsfundamentals.org/threejs/resources/images/wall.jpg') }),
+    ];
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(), materials);
+    scene.add(cube);
+
+    // Handle mouse interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isDragging = false;
+    let previousMouseX = 0;
+    let previousMouseY = 0;
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    function handleMouseDown(event) {
+      isDragging = true;
+      previousMouseX = event.clientX;
+      previousMouseY = event.clientY;
+    }
+
+    function handleMouseMove(event) {
+      if (!isDragging) return;
+
+      const deltaX = event.clientX - previousMouseX;
+      const deltaY = event.clientY - previousMouseY;
+
+      cube.rotation.y += deltaX * 0.01;
+      cube.rotation.x += deltaY * 0.01;
+
+      previousMouseX = event.clientX;
+      previousMouseY = event.clientY;
+
+      // Emit the cube rotation state to the server
+      const rotationState = {
+        x: cube.rotation.x / (2 * Math.PI),
+        y: cube.rotation.y / (2 * Math.PI),
+      };
+      socket.emit('update_cube_rotation', rotationState);
+    }
+
+    function handleMouseUp() {
+      isDragging = false;
+    }
+
+    // Listen for updates from the server and apply them to the cube
+    socket.on('update_cube_rotation', (data) => {
+      cube.rotation.x = data.x * 2 * Math.PI;
+      cube.rotation.y = data.y * 2 * Math.PI;
+    });
+
+    // Animation function
+    const animate = function () {
+      requestAnimationFrame(animate);
+
+      renderer.render(scene, camera);
+    };
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(newWidth, newHeight);
+    });
+
+    // Start animation
+    animate();
+  </script>
+</head>
+<body>
+</body>
+</html>
